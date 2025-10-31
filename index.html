@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ToDay — Know Your Day</title>
+
+<!-- SunCalc for Sun/Moon calculations (fallback/local calculations) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.8.0/suncalc.min.js"></script>
+
+<style>
+:root{
+  --bg1:#fff7ed;
+  --bg2:#fff0f5;
+  --accent:#c46f00;
+  --accent-2:#b23a48;
+  --muted:#6b6b6b;
+  --card:#ffffffcc;
+  --radius:14px;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,'Noto Sans',sans-serif;background:linear-gradient(135deg,var(--bg1),var(--bg2));color:#2b2b2b}
+
+/* Header */
+header{display:flex;align-items:center;justify-content:space-between;padding:18px 28px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.logo{width:56px;height:56px;border-radius:50%;background:linear-gradient(45deg,#ffd27f,#ff9f80);display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(0,0,0,0.12)}
+.logo span{font-size:22px}
+h1{margin:0;font-size:20px;letter-spacing:0.2px}
+.subtitle{font-size:13px;color:var(--muted)}
+.controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.btn{background:var(--accent);color:white;padding:10px 12px;border-radius:10px;border:none;cursor:pointer;font-weight:600;transition:0.3s}
+.btn:hover{opacity:0.9}
+.btn.ghost{background:transparent;color:var(--accent);border:2px solid rgba(0,0,0,0.06)}
+.locInput{padding:8px 10px;border-radius:10px;border:1px solid rgba(0,0,0,0.06);background:white}
+
+/* Layout */
+main.container{display:grid;grid-template-columns:1fr 420px;gap:20px;padding:18px 28px}
+@media (max-width:980px){main.container{grid-template-columns:1fr;padding:12px}}
+.card{background:var(--card);border-radius:var(--radius);padding:18px;box-shadow:0 10px 30px rgba(0,0,0,0.06)}
+.calendar{min-height:420px}
+.calendar-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap}
+.cal-nav{display:flex;gap:8px;align-items:center}
+.cal-nav button{background:transparent;border:none;padding:8px;border-radius:8px;cursor:pointer;font-size:18px}
+.month-year{font-weight:700;font-size:18px}
+.weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;color:var(--muted);font-size:13px;text-align:center;margin-bottom:6px}
+.date-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+.date-tile{padding:10px;border-radius:10px;text-align:center;cursor:pointer;min-height:70px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start}
+.date-tile:hover{transform:translateY(-4px);box-shadow:0 14px 30px rgba(0,0,0,0.06)}
+.date-number{font-weight:700}
+.today{border:2px solid #ffd27f;box-shadow:0 6px 18px rgba(255,162,50,0.15)}
+.other-month{opacity:0.35}
+.has-event::after{content:'';width:8px;height:8px;border-radius:50%;background:var(--accent-2);display:block;margin-top:8px}
+
+/* Info panel */
+aside.info{position:relative}
+.infoHeader{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.dateTitle{font-size:18px;font-weight:800}
+.panchang {margin-top:12px;display:grid;grid-template-columns:1fr;gap:12px}
+.panch-card{background:linear-gradient(180deg,rgba(255,255,255,0.9),rgba(255,255,255,0.7));padding:12px;border-radius:12px}
+.timing-row{display:flex;align-items:center;justify-content:space-between;padding:8px;border-radius:10px;margin-bottom:5px;font-weight:600}
+.timing-row.good{background:linear-gradient(90deg,#e9ffea,#d6f5d6);border-left:5px solid #00a650}
+.timing-row.warn{background:linear-gradient(90deg,#fff9e5,#fff2cc);border-left:5px solid #ff9900}
+.timing-row.bad{background:linear-gradient(90deg,#ffeaea,#ffd6d6);border-left:5px solid #e74c3c}
+.grahan{padding:12px;border-radius:12px;background:linear-gradient(135deg,#3a0ca3,#7209b7);color:white;margin-top:12px;box-shadow:0 6px 20px rgba(114,9,183,0.3)}
+.eventsList{margin-top:8px;max-height:220px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#ffd27f transparent}
+.eventsList::-webkit-scrollbar{width:6px}
+.eventsList::-webkit-scrollbar-thumb{background:#ffd27f;border-radius:6px}
+.eventItem{padding:8px;border-radius:8px;background:linear-gradient(90deg,#fffaf0,#fff0f5);margin-bottom:8px;border-left:5px solid #ffa500;transition:0.3s}
+.eventItem:hover{transform:translateX(5px);background:linear-gradient(90deg,#fff3e0,#ffe4e1)}
+
+/* modals */
+.modal{position:fixed;left:0;top:0;right:0;bottom:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);z-index:80}
+.modal.show{display:flex}
+.modal .paper{width:420px;background:white;padding:18px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.2)}
+small.muted{color:var(--muted)}
+
+/* mobile tweak */
+@media (max-width:520px){
+  header .controls{width:100%;justify-content:flex-end}
+  .logo{width:48px;height:48px}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo"><span>🌼</span></div>
+    <div>
+      <h1>ToDay — Know Your Day</h1>
+      <div class="subtitle">Welcome! Click any date to see full Panchang & timings</div>
+    </div>
+  </div>
+  <div class="controls">
+    <input id="locInput" class="locInput" placeholder="Enter city or use geo (city, country or lat,lon)" />
+    <button id="useGeo" class="btn ghost">Use My Location</button>
+    <button id="signinBtn" class="btn">Sign In</button>
+  </div>
+</header>
+
+<main class="container">
+  <section class="card calendar">
+    <div class="calendar-header">
+      <div class="cal-nav">
+        <button id="prevMonth">◀</button>
+        <div class="month-year" id="monthYear">Month Year</div>
+        <button id="nextMonth">▶</button>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="month" id="monthPicker" />
+        <input type="date" id="jumpDate" title="Jump to date" />
+      </div>
+    </div>
+
+    <div class="weekdays">
+      <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+    </div>
+
+    <div class="date-grid" id="dateGrid"></div>
+  </section>
+
+  <aside class="card info">
+    <div class="infoHeader">
+      <div>
+        <div class="dateTitle" id="selectedDateTitle">Select a date</div>
+        <div class="subtitle" id="selectedDay">—</div>
+      </div>
+      <div style="text-align:right">
+        <small class="muted">Location:</small>
+        <div id="locLabel" style="font-weight:700">Not set</div>
+      </div>
+    </div>
+
+    <div class="panchang" id="panchangArea">
+      <div class="panch-card" id="panchCard">
+        <div id="panchangLoading">Click a date to load Panchang details.</div>
+      </div>
+    </div>
+
+    <div id="grahanArea"></div>
+
+    <div style="margin-top:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="font-weight:800">Events</div>
+        <button id="addEventBtn" class="btn">Add Event</button>
+      </div>
+      <div class="eventsList" id="eventsList">
+        <div class="subtitle">No events for selected date.</div>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<!-- Sign-in Modal -->
+<div id="signinModal" class="modal">
+  <div class="paper">
+    <h3 id="authTitle">Sign In</h3>
+    <input id="authEmail" placeholder="Email" style="width:100%;padding:10px;margin-bottom:8px;border-radius:8px;border:1px solid #eee" />
+    <input id="authName" placeholder="Full name (for Sign Up)" style="width:100%;padding:10px;margin-bottom:8px;border-radius:8px;border:1px solid #eee;display:none" />
+    <button id="authSubmit" class="btn" style="width:100%">Submit</button>
+    <div style="margin-top:6px;text-align:center">
+      <a href="#" id="toggleAuth">Don't have an account? Sign up</a>
+    </div>
+  </div>
+</div>
+
+<!-- Add Event Modal -->
+<div id="addEventModal" class="modal">
+  <div class="paper">
+    <h3>Add Event</h3>
+    <input id="eventText" placeholder="Event description" style="width:100%;padding:10px;margin-bottom:8px;border-radius:8px;border:1px solid #eee"/>
+    <button id="saveEvent" class="btn" style="width:100%">Save</button>
+  </div>
+</div>
+
+<script>
+/* ============================
+   ToDay — Single index.html (FINAL)
+   - Keep structure same as you provided
+   - Paste your FreeAstrologyAPI key into ASTRO_API_KEY (keep quotes)
+   - App will try API first; if it fails it falls back to local SunCalc logic
+   ============================ */
+
+/* ---------- PASTE YOUR API KEY HERE ----------
+   Replace the placeholder string below with your FreeAstrologyAPI key.
+   IMPORTANT: keep the quotes around the key (it's a JS string).
+   Example:
+     const ASTRO_API_KEY = 'your_real_key_goes_here';
+*/
+const ASTRO_API_KEY = 'TiiLP3COAyaikI2ZKWysxaxq4KOkrQ222fZwS6Ws'; // <<< REPLACE THIS STRING (keep quotes)
+
+/* ---------- State ---------- */
+let today = new Date();
+let currentMonth = today.getMonth();
+let currentYear = today.getFullYear();
+let selectedDate = new Date(today);
+let eventsPublic = JSON.parse(localStorage.getItem('public_events')||'{}');
+let currentUser = JSON.parse(localStorage.getItem('demo_current_user') || 'null');
+
+/* ---------- Offline fallback festivals & grahan (minimal) ----------
+   Add more entries if you want offline coverage.
+------------------------------------------------------------------ */
+const offlineFestivals = {
+  "2025-10-24": ["Diwali"],
+  "2025-01-14": ["Makar Sankranti"],
+  "2025-08-15": ["Independence Day"]
+};
+const offlineGrahan = {
+  "2025-10-29": { type: "Chandra Grahan (Total Lunar Eclipse)", start: "18:05", mid: "19:30", end: "20:55", visible: "All India" },
+  "2025-04-20": { type: "Surya Grahan (Partial Solar Eclipse)", start: "10:12", mid: "11:33", end: "13:01", visible: "Northern India" }
+};
+
+function pad(n){return n<10?'0'+n:n;}
+function ymd(d){ return d.toISOString().slice(0,10); }
+
+/* ---------- Calendar ---------- */
+function renderCalendar(){
+  const grid = document.getElementById('dateGrid'); grid.innerHTML='';
+  document.getElementById('monthYear').textContent = new Date(currentYear,currentMonth,1).toLocaleString(undefined,{month:'long',year:'numeric'});
+  document.getElementById('monthPicker').value = `${currentYear}-${pad(currentMonth+1)}`;
+
+  const firstDay = new Date(currentYear,currentMonth,1).getDay();
+  const daysInMonth = new Date(currentYear,currentMonth+1,0).getDate();
+  const prevLast = new Date(currentYear,currentMonth,0).getDate();
+
+  for(let i=0;i<42;i++){
+    const cell = document.createElement('div'); cell.className='date-tile';
+    let dval, cellDate;
+    if(i < firstDay){
+      dval = prevLast - (firstDay - 1) + i;
+      cell.classList.add('other-month');
+      cellDate = new Date(currentYear, currentMonth-1, dval);
+    } else if(i < firstDay + daysInMonth){
+      dval = i - firstDay + 1;
+      cellDate = new Date(currentYear, currentMonth, dval);
+      if(cellDate.toDateString() === new Date().toDateString()) cell.classList.add('today');
+      const key = ymd(cellDate);
+      if(eventsPublic[key] && eventsPublic[key].length) cell.classList.add('has-event');
+      if(offlineGrahan[key]) {
+        const icon = document.createElement('div'); icon.style.marginTop='6px';
+        icon.textContent = offlineGrahan[key].type.includes('Chandra') ? '🌑' : '🌞';
+        cell.appendChild(icon);
+      }
+    } else {
+      dval = i - (firstDay + daysInMonth) + 1;
+      cell.classList.add('other-month');
+      cellDate = new Date(currentYear, currentMonth+1, dval);
+    }
+    cell.innerHTML = `<div class="date-number">${dval}</div>`;
+    cell.addEventListener('click', ()=> selectDate(cellDate.getFullYear(), cellDate.getMonth(), cellDate.getDate()));
+    grid.appendChild(cell);
+  }
+}
+
+/* ---------- Date selection ---------- */
+function selectDate(y,m,d){
+  selectedDate = new Date(y,m,d);
+  document.getElementById('selectedDateTitle').textContent = selectedDate.toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'});
+  document.getElementById('selectedDay').textContent = selectedDate.toLocaleDateString(undefined,{weekday:'long'});
+  document.getElementById('jumpDate').value = ymd(selectedDate);
+  loadPanchangForSelectedDate();
+  loadEventsForSelectedDate();
+}
+
+/* ---------- Events ---------- */
+function loadEventsForSelectedDate(){
+  const key = ymd(selectedDate);
+  const list = document.getElementById('eventsList'); list.innerHTML='';
+  const arr = eventsPublic[key]||[];
+  if(arr.length===0){
+    list.innerHTML = '<div class="subtitle">No events for selected date.</div>'; return;
+  }
+  arr.forEach(ev=>{ const div=document.createElement('div'); div.className='eventItem'; div.textContent=ev; list.appendChild(div); });
+}
+
+/* ---------- Add Event ---------- */
+document.getElementById('addEventBtn').addEventListener('click', ()=>{ if(!currentUser){ showSignIn(); return } document.getElementById('addEventModal').classList.add('show'); });
+document.getElementById('saveEvent').addEventListener('click', ()=>{
+  const t = document.getElementById('eventText').value.trim(); if(!t) return alert('Enter event text');
+  const k = ymd(selectedDate); eventsPublic[k] = eventsPublic[k] || []; eventsPublic[k].push(t);
+  localStorage.setItem('public_events', JSON.stringify(eventsPublic));
+  document.getElementById('eventText').value=''; document.getElementById('addEventModal').classList.remove('show');
+  renderCalendar(); loadEventsForSelectedDate();
+});
+document.getElementById('addEventModal').addEventListener('click', (e)=>{ if(e.target===e.currentTarget) e.currentTarget.classList.remove('show'); });
+
+/* ---------- Location helpers (geocode, geolocate) ---------- */
+function parseLatLon(text){
+  if(!text) return null;
+  const parts = text.split(',');
+  if(parts.length===2){
+    const a=parseFloat(parts[0].trim()), b=parseFloat(parts[1].trim());
+    if(!isNaN(a) && !isNaN(b)) return {lat:a, lon:b};
+  }
+  return null;
+}
+
+async function geocodeAndRender(query){
+  try{
+    const q=encodeURIComponent(query);
+    const url=`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`;
+    const resp = await fetch(url, { headers: { 'Accept': 'application/json' }});
+    if(!resp.ok) throw new Error('Geocode fail');
+    const js = await resp.json();
+    if(js && js[0] && js[0].lat && js[0].lon){
+      const lat=parseFloat(js[0].lat), lon=parseFloat(js[0].lon);
+      localStorage.setItem('demo_loc_coords', JSON.stringify({lat,lon, label: query}));
+      document.getElementById('locLabel').textContent = `📍 ${query}`;
+      await renderPanchangFromAPI(lat, lon);
+    } else throw new Error('No geocode result');
+  }catch(err){
+    console.warn('geocode failed', err); fallbackToGeolocationAndRender();
+  }
+}
+
+function fallbackToGeolocationAndRender(){
+  if(!navigator.geolocation){ alert('Geolocation not available. Please enter location (lat,lon)'); return; }
+  document.getElementById('useGeo').textContent = 'Locating…';
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    const lat = pos.coords.latitude, lon = pos.coords.longitude;
+    localStorage.setItem('demo_loc_coords', JSON.stringify({lat,lon, label:`Lat ${lat.toFixed(2)}, Lon ${lon.toFixed(2)}`}));
+    document.getElementById('locLabel').textContent = `📍 ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+    document.getElementById('useGeo').textContent = 'Use My Location';
+    await renderPanchangFromAPI(lat, lon);
+  }, err=>{
+    console.warn(err); alert('Unable to get location (permission denied or error). Enter lat,lon manually.'); document.getElementById('useGeo').textContent = 'Use My Location';
+  }, {timeout:10000});
+}
+document.getElementById('useGeo').addEventListener('click', ()=>{ document.getElementById('locInput').value=''; fallbackToGeolocationAndRender(); });
+
+/* ---------- Main Panchang loader: try API -> fallback to SunCalc local ---------- */
+async function loadPanchangForSelectedDate(){
+  let locText = document.getElementById('locInput').value.trim();
+  if(locText){
+    const coords = parseLatLon(locText);
+    if(coords) return renderPanchangFromAPI(coords.lat, coords.lon);
+    return geocodeAndRender(locText);
+  }
+  const saved = JSON.parse(localStorage.getItem('demo_loc_coords')||'null');
+  if(saved && saved.lat && saved.lon) return renderPanchangFromAPI(saved.lat, saved.lon);
+  return fallbackToGeolocationAndRender();
+}
+
+/* ---------- API call (FreeAstrologyAPI) ----------
+   Note: freeastrologyapi expects a JSON POST to /panchang and x-api-key header.
+   If the provider you're using differs, adapt URL/body accordingly.
+--------------------------------------------------------------------- */
+async function callPanchangAPI(dateStr, lat, lon, tzOffsetHours){
+  const url = 'https://json.freeastrologyapi.com/panchang';
+  const body = { date: dateStr, latitude: lat, longitude: lon, timezone: tzOffsetHours };
+  try{
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ASTRO_API_KEY
+      },
+      body: JSON.stringify(body)
+    });
+    // If CORS blocks this client-side request, this will throw or resp.ok will be false.
+    const js = await resp.json();
+    if(!resp.ok) throw new Error(js?.message || JSON.stringify(js));
+    return js;
+  }catch(err){
+    console.warn('API panchang error', err);
+    throw err;
+  }
+}
+
+/* ---------- Parse API variations into unified object ---------- */
+function parseAPIResponse(js){
+  const out = {
+    sunrise: js.sunrise || js.data?.sunrise || js.result?.sunrise || null,
+    sunset: js.sunset || js.data?.sunset || js.result?.sunset || null,
+    moonrise: js.moonrise || js.data?.moonrise || js.result?.moonrise || null,
+    moonset: js.moonset || js.data?.moonset || js.result?.moonset || null,
+    tithi: js.tithi || js.data?.tithi || js.result?.tithi || null,
+    nakshatra: js.nakshatra || js.data?.nakshatra || js.result?.nakshatra || null,
+    yoga: js.yoga || js.data?.yoga || js.result?.yoga || null,
+    karana: js.karana || js.data?.karana || js.result?.karana || null,
+    festivals: js.festivals || js.data?.festivals || js.result?.festivals || [],
+    grahan: js.grahan || js.data?.grahan || js.result?.grahan || null,
+    rahu: js.rahukalam || js.rahukala || js.data?.rahukalam || js.result?.rahukalam || null,
+    yamagandam: js.yamagandam || js.data?.yamagandam || js.result?.yamagandam || null,
+    gulikai: js.gulikai || js.data?.gulikai || js.result?.gulikai || null,
+    durmuhurtham: js.durmuhurtham || js.data?.durmuhurtham || js.result?.durmuhurtham || null,
+    abhijit: js.abhijit || js.data?.abhijit || js.result?.abhijit || null,
+    subha: js.subha || js.subhaSamayam || js.subha_samayam || js.data?.subha || null
+  };
+  for(const k of ['sunrise','sunset','moonrise','moonset','rahu','yamagandam','gulikai','durmuhurtham','abhijit','subha']){
+    const v = out[k];
+    if(v && typeof v === 'object'){
+      if(v.time) out[k] = v.time;
+      else if(v.start && v.end) out[k] = `${v.start} - ${v.end}`;
+      else if(v.from && v.to) out[k] = `${v.from} - ${v.to}`;
+    }
+  }
+  return out;
+}
+
+/* ---------- Render using API result (or fallback) ---------- */
+function renderPanchangUI(data, lat, lon){
+  const card = document.getElementById('panchCard');
+  let html = '';
+  html += `<div style="font-weight:800">${selectedDate.toLocaleDateString(undefined,{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div>`;
+  html += `<div style="font-size:13px;color:var(--muted);margin-bottom:8px">Location: ${lat.toFixed(4)}, ${lon.toFixed(4)}</div>`;
+
+  const sunrise = data.sunrise || '—';
+  const sunset = data.sunset || '—';
+  const moonrise = data.moonrise || '—';
+  const moonset = data.moonset || '—';
+  html += `<div class="timing-row good"><div>Sunrise</div><div>${sunrise}</div></div>`;
+  html += `<div class="timing-row good"><div>Sunset</div><div>${sunset}</div></div>`;
+  html += `<div class="timing-row"><div>Moonrise</div><div>${moonrise}</div></div>`;
+  html += `<div class="timing-row"><div>Moonset</div><div>${moonset}</div></div>`;
+
+  // auspicious blocks (prefer API fields)
+  if(data.subha) html += `<div class="timing-row good"><div>Subha Samayam</div><div>${data.subha}</div></div>`;
+  if(data.abhijit) html += `<div class="timing-row good"><div>Abhijit Muhurat</div><div>${data.abhijit}</div></div>`;
+  if(data.rahu) html += `<div class="timing-row warn"><div>Rahukalam</div><div>${data.rahu}</div></div>`;
+  if(data.yamagandam) html += `<div class="timing-row warn"><div>Yamagandam</div><div>${data.yamagandam}</div></div>`;
+  if(data.gulikai) html += `<div class="timing-row warn"><div>Gulikai</div><div>${data.gulikai}</div></div>`;
+  if(data.durmuhurtham) html += `<div class="timing-row bad"><div>Durmuhurtham</div><div>${data.durmuhurtham}</div></div>`;
+
+  html += `<div style="margin-top:10px" class="panch-card"><div><strong>Tithi:</strong> ${data.tithi || '—'}</div><div><strong>Nakshatra:</strong> ${data.nakshatra || '—'}</div><div><strong>Yoga:</strong> ${data.yoga || '—'}</div><div><strong>Karana:</strong> ${data.karana || '—'}</div></div>`;
+
+  const festiv = (data.festivals && data.festivals.length) ? data.festivals : (offlineFestivals[ymd(selectedDate)] || []);
+  if(festiv && festiv.length) html += `<div style="margin-top:8px;font-weight:800">Festivals: ${festiv.join(', ')}</div>`;
+
+  card.innerHTML = html;
+
+  // grahan area
+  const grahanArea = document.getElementById('grahanArea'); grahanArea.innerHTML = '';
+  if(data.grahan){
+    const g = data.grahan;
+    if(typeof g === 'string') grahanArea.innerHTML = `<div class="grahan">${g}</div>`;
+    else{
+      const type = g.type || g.name || 'Grahan';
+      const start = g.start || g.from || '';
+      const mid = g.mid || g.peak || '';
+      const end = g.end || g.to || '';
+      const visible = g.visible || g.visibility || '';
+      grahanArea.innerHTML = `<div class="grahan"><strong>${type}</strong><br>Start: ${start} &nbsp; Mid: ${mid} &nbsp; End: ${end}<div style="font-size:12px;color:#ddd;margin-top:6px">Visible: ${visible}</div></div>`;
+    }
+  } else {
+    const offline = offlineGrahan[ymd(selectedDate)];
+    if(offline) grahanArea.innerHTML = `<div class="grahan"><strong>${offline.type}</strong><br>Start: ${offline.start} &nbsp; Mid: ${offline.mid} &nbsp; End: ${offline.end}<div style="font-size:12px;color:#ddd;margin-top:6px">Visible: ${offline.visible}</div></div>`;
+  }
+}
+
+/* ---------- Local fallback calculations using SunCalc (if API unavailable) ---------- */
+function renderPanchangLocal(lat, lon){
+  const d = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(),0,0,0,0);
+  const sc = SunCalc.getTimes(d, lat, lon);
+  const sunrise = sc.sunrise; const sunset = sc.sunset;
+  const moonTimes = SunCalc.getMoonTimes(d, lat, lon, true);
+  const moonrise = moonTimes.rise || null; const moonset = moonTimes.set || null;
+
+  const dayMs = sunset - sunrise;
+  const part = dayMs / 8;
+  const weekday = selectedDate.getDay();
+  const rahuIndexMap = {0:1,1:0,2:6,3:5,4:4,5:3,6:2};
+  const rahuIndex = rahuIndexMap[weekday] || 1;
+  const rahuStart = new Date(sunrise.getTime() + rahuIndex * part);
+  const rahuEnd = new Date(rahuStart.getTime() + part);
+  const yamaIndexMap = {0:4,1:2,2:5,3:1,4:6,5:3,6:0};
+  const yamaIndex = yamaIndexMap[weekday] || 4;
+  const yamaStart = new Date(sunrise.getTime() + yamaIndex * part);
+  const yamaEnd = new Date(yamaStart.getTime() + part);
+  const gulikaIndexMap = {0:6,1:5,2:4,3:3,4:2,5:1,6:0};
+  const gulIndex = gulikaIndexMap[weekday] || 6;
+  const gulStart = new Date(sunrise.getTime() + gulIndex * part);
+  const gulEnd = new Date(gulStart.getTime() + part);
+
+  const moonIll = SunCalc.getMoonIllumination(d);
+  const tIdx = Math.floor(moonIll.phase * 30);
+  const tithi = approximateTithi(tIdx);
+
+  const out = {
+    sunrise: formatTime(sunrise), sunset: formatTime(sunset),
+    moonrise: moonrise?formatTime(moonrise):'—', moonset: moonset?formatTime(moonset):'—',
+    tithi: tithi, nakshatra: 'Approx', yoga: 'Approx', karana: 'Approx',
+    festivals: offlineFestivals[ymd(selectedDate)] || [],
+    grahan: offlineGrahan[ymd(selectedDate)] || null,
+    rahu: `${formatTime(rahuStart)} - ${formatTime(rahuEnd)}`,
+    yamagandam: `${formatTime(yamaStart)} - ${formatTime(yamaEnd)}`,
+    gulikai: `${formatTime(gulStart)} - ${formatTime(gulEnd)}`,
+    durmuhurtham: `${formatTime(new Date(sunrise.getTime()+2*part))} - ${formatTime(new Date(sunrise.getTime()+3*part))}`,
+    abhijit: `${formatTime(new Date((sunrise.getTime()+sunset.getTime())/2 - 12*60000))} - ${formatTime(new Date((sunrise.getTime()+sunset.getTime())/2 + 12*60000))}`
+  };
+  renderPanchangUI(out, lat, lon);
+}
+
+function formatTime(dt){ if(!dt) return '—'; const hh = pad(dt.getHours()), mm = pad(dt.getMinutes()); return `${hh}:${mm}`; }
+function approximateTithi(idx){ const tithiNames = ['Pratipada','Dvitiya','Tritiya','Chaturthi','Panchami','Shashthi','Saptami','Ashtami','Navami','Dashami','Ekadashi','Dvadashi','Trayodashi','Chaturdashi','Purnima/Amavasya']; return tithiNames[idx % tithiNames.length]; }
+
+/* ---------- Top-level function: attempt API, fallback to local ----------
+   Good behavior:
+    * If ASTRO_API_KEY is set and API responds, app shows API data (festivals/grahan if present).
+    * If API fails (invalid key, CORS, network), app shows a helpful message and falls back to local SunCalc data.
+----------------------------------------------------------------------- */
+async function renderPanchangFromAPI(lat, lon){
+  const dateStr = ymd(selectedDate);
+  const tz = (new Date()).getTimezoneOffset() / -60; // local timezone offset in hours
+  const card = document.getElementById('panchCard');
+  card.innerHTML = '<div id="panchangLoading">Loading Panchang (API)...</div>';
+
+  // If user didn't replace the key, use local fallback immediately (avoid noisy API errors)
+  if(!ASTRO_API_KEY || ASTRO_API_KEY === 'YOUR_FREEASTROAPI_KEY_HERE'){
+    card.innerHTML = '<div id="panchangLoading">No API key set — using local calculations (fallback)</div>';
+    setTimeout(()=> renderPanchangLocal(lat, lon), 250);
+    return;
+  }
+
+  try{
+    const apiResp = await callPanchangAPI(dateStr, lat, lon, tz);
+    const unified = parseAPIResponse(apiResp);
+    // If API returned minimal or empty data, but there is an offline/fallback possible, still show API result if meaningful
+    renderPanchangUI(unified, lat, lon);
+  }catch(err){
+    // If API call fails, show friendly message and fallback
+    const reason = (err && err.message) ? err.message : 'Unknown error';
+    const msg = `API failed (${reason}). Falling back to local calculation — results may be approximate.`;
+    const card = document.getElementById('panchCard');
+    card.innerHTML = `<div style="font-weight:700;color:#b23a48;margin-bottom:6px">${msg}</div><div id="panchangLoading">Calculating local Panchang…</div>`;
+    setTimeout(()=> renderPanchangLocal(lat, lon), 350);
+  }
+}
+
+/* ---------- Sign-in handling ---------- */
+let authMode = 'signin';
+function showSignIn(){ document.getElementById('signinModal').classList.add('show'); document.getElementById('authName').style.display='none'; document.getElementById('authTitle').textContent='Sign In'; authMode='signin'; document.getElementById('toggleAuth').textContent="Don't have an account? Sign up"; }
+function toggleAuth(e){ if(e) e.preventDefault(); authMode = (authMode==='signin') ? 'signup' : 'signin'; document.getElementById('authName').style.display = (authMode==='signup') ? 'block' : 'none'; document.getElementById('authTitle').textContent = (authMode==='signup') ? 'Sign Up' : 'Sign In'; document.getElementById('toggleAuth').textContent = (authMode==='signup') ? 'Already have an account? Sign in' : "Don't have an account? Sign up"; }
+document.getElementById('toggleAuth').addEventListener('click', toggleAuth);
+
+document.getElementById('signinBtn').addEventListener('click', ()=>{
+  if(currentUser){ localStorage.removeItem('demo_current_user'); currentUser=null; document.getElementById('signinBtn').textContent='Sign In'; alert('Signed out'); }
+  else showSignIn();
+});
+document.getElementById('authSubmit').addEventListener('click', ()=>{
+  const email = document.getElementById('authEmail').value.trim();
+  const name = document.getElementById('authName').value.trim();
+  if(!email) return alert('Enter email');
+  let users = JSON.parse(localStorage.getItem('demo_users')||'{}');
+  if(authMode==='signup'){
+    if(users[email]) return alert('Account exists, please sign in');
+    users[email] = { name: name || email.split('@')[0] };
+    localStorage.setItem('demo_users', JSON.stringify(users));
+    localStorage.setItem('demo_current_user', JSON.stringify({email, name: users[email].name}));
+    currentUser = {email, name: users[email].name}; document.getElementById('signinBtn').textContent='Sign Out'; document.getElementById('signinModal').classList.remove('show'); alert('Account created & signed in as '+users[email].name);
+  } else {
+    if(users[email]){ localStorage.setItem('demo_current_user', JSON.stringify({email, name: users[email].name})); currentUser={email,name:users[email].name}; document.getElementById('signinBtn').textContent='Sign Out'; document.getElementById('signinModal').classList.remove('show'); alert('Welcome back, '+users[email].name); }
+    else { alert('No account found. Please sign up.'); toggleAuth(); }
+  }
+});
+document.getElementById('signinModal').addEventListener('click',(e)=>{ if(e.target===e.currentTarget) e.currentTarget.classList.remove('show'); });
+
+/* ---------- UI controls binding ---------- */
+document.getElementById('prevMonth').addEventListener('click', ()=>{ currentMonth--; if(currentMonth<0){ currentMonth=11; currentYear--; } renderCalendar(); });
+document.getElementById('nextMonth').addEventListener('click', ()=>{ currentMonth++; if(currentMonth>11){ currentMonth=0; currentYear++; } renderCalendar(); });
+document.getElementById('monthPicker').addEventListener('change', (e)=>{ const [y,m]=e.target.value.split('-'); if(y&&m){ currentYear=parseInt(y); currentMonth=parseInt(m)-1; renderCalendar(); }});
+document.getElementById('jumpDate').addEventListener('change', (e)=>{ const d=new Date(e.target.value); if(!isNaN(d)) selectDate(d.getFullYear(), d.getMonth(), d.getDate()); });
+document.getElementById('locInput').addEventListener('change', (e)=>{ const v=e.target.value.trim(); const coords=parseLatLon(v); if(coords){ document.getElementById('locLabel').textContent = `📍 ${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}` ; localStorage.setItem('demo_loc_coords', JSON.stringify({lat:coords.lat, lon: coords.lon, label: `${coords.lat.toFixed(4)},${coords.lon.toFixed(4)}`})); loadPanchangForSelectedDate(); } else { document.getElementById('locLabel').textContent = v || 'Not set'; } });
+
+/* ---------- Init ---------- */
+function init(){
+  const savedLoc = JSON.parse(localStorage.getItem('demo_loc_coords')||'null');
+  if(savedLoc && savedLoc.label) document.getElementById('locLabel').textContent = '📍 ' + savedLoc.label;
+  else if(savedLoc && savedLoc.lat) document.getElementById('locLabel').textContent = `📍 ${savedLoc.lat.toFixed(4)}, ${savedLoc.lon.toFixed(4)}`;
+  if(currentUser) document.getElementById('signinBtn').textContent = 'Sign Out';
+  renderCalendar();
+  selectDate(today.getFullYear(), today.getMonth(), today.getDate());
+}
+init();
+
+/* ============================
+   Final notes:
+   - Paste your key into ASTRO_API_KEY (keep quotes).
+   - If the API blocks the client-side request due to CORS, you'll see a fallback message and local calculations. If that happens and you want authoritative API results, the correct solution is to proxy requests through a simple backend to hide the key and avoid CORS (I can provide that server code).
+   - If you want, I can now produce the small Node/Express proxy server that you run locally (single file) to avoid client-side CORS issues and keep the key secret. Just say "Yes — make backend proxy".
+   ============================ */
+</script>
+</body>
+</html>
